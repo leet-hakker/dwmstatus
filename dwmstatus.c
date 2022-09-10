@@ -60,7 +60,7 @@ mktimes(char *fmt, char *tzname)
 	tim = time(NULL);
 	struct tm tm = *localtime(&tim);
 
-  return smprintf("%02d:%02d:%02d | %02d/%02d/%d", tm.tm_hour, tm.tm_min, tm.tm_sec, tm.tm_mday, tm.tm_mon+1 , tm.tm_year + 1900);
+  return smprintf("%02d:%02d | %02d/%02d/%d", tm.tm_hour, tm.tm_min, tm.tm_mday, tm.tm_mon+1 , tm.tm_year + 1900);
 
 }
 
@@ -94,7 +94,7 @@ readfile(char *base, char *file)
 	fd = fopen(path, "r");
 	free(path);
 	if (fd == NULL)
-		return NULL;
+		return NULL; 
 
 	if (fgets(line, sizeof(line)-1, fd) == NULL)
 		return NULL;
@@ -192,7 +192,7 @@ getvolume()
 {
     char *volume;
 
-    volume = runsyscmd("/usr/bin/pamixer --get-volume");
+    volume = runsyscmd("amixer sget Master | awk -F\"[][]\" '/dB/ { print $2 }'");
 
     return volume;
 }
@@ -202,7 +202,7 @@ getnetwork()
 {
     char *nettraffic;
     printf("\u2B07");
-    nettraffic = runsyscmd("ifstat2 -i wlp3s0 0.5s 1 | awk 'NR==3 {print \"Down: \" $1 \" KB/s | Up: \" $2 \" KB/s\"}'");
+    nettraffic = runsyscmd("ifstat -i wlan0 0.5s 1 | awk 'NR==3 {print \"Down: \" $1 \" KB/s | Up: \" $2 \" KB/s\"}'");
 
     return nettraffic;
 }
@@ -212,10 +212,12 @@ main(void)
 {
     char *status;
     char *avgs;
-    char *t0, *gputemp;
+    char *cputemp;
+//    char *gputemp;
     char *tmldn;
     char *volume;
     char *nettraffic;
+    char *battery;
 
     if (!(dpy = XOpenDisplay(NULL))) {
         fprintf(stderr, "dwmstatus: cannot open display.\n");
@@ -225,17 +227,18 @@ main(void)
     for (;;sleep(1)) {
         avgs = loadavg();
         tmldn = mktimes("%H:%M:%S", tzlondon);
-        t0 = gettemperature("/sys/class/hwmon/hwmon0", "temp1_input");
-        gputemp = gettemperature("/sys/class/hwmon/hwmon2", "temp1_input");
+        cputemp = gettemperature("/sys/class/hwmon/hwmon3", "temp2_input");
+//        gputemp = gettemperature("/sys/class/hwmon/hwmon2", "temp1_input");
         volume = getvolume();
         nettraffic = getnetwork();
+	battery = getbattery("/sys/class/power_supply/BAT0");
 
-        status = smprintf("CPU: %s | GPU: %s | %s | CPU Use: %s% | Vol: %s% | %s",
-            t0, gputemp, nettraffic, avgs, volume, tmldn);
+        status = smprintf("%s | CPU: %s | %s | CPU Use: %s% | Vol: %s | %s",
+            battery, cputemp, nettraffic, avgs, volume, tmldn);
         setstatus(status);
 
-        free(t0);
-        free(gputemp);
+        free(cputemp);
+//        free(gputemp);
         free(nettraffic);
         free(tmldn);
         free(avgs);
